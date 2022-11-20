@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from .serializers import UserSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.models import User
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+# from rest_framework.authentication import TokenAuthentication
+# from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 import jwt
 import datetime
@@ -44,7 +44,7 @@ class LoginUser(APIView):
         }
 
         token = jwt.encode(payload, 'secret',
-                           algorithm='HS256').decode('utf-8')
+                           algorithm='HS256')
 
         response = Response()
 
