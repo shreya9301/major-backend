@@ -1,8 +1,9 @@
 from django.urls import path
-from .views import LoginUser, LogoutUser, RegisterUser
+from .views import LoginUser, LogoutUser, RegisterUser,GetPrediction
 
 urlpatterns = [
     path('register/', RegisterUser.as_view()),
     path('login/', LoginUser.as_view()),
-    path('logout/', LogoutUser.as_view())
+    path('logout/', LogoutUser.as_view()),
+    path('upload/',GetPrediction.as_view())
 ]

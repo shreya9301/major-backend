@@ -1,10 +1,11 @@
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import viewsets
 from .serializers import UserSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.models import User
 # from rest_framework.authentication import TokenAuthentication
-# from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 import jwt
 import datetime
@@ -63,3 +64,16 @@ class LogoutUser(APIView):
             'message': 'success'
         }
         return response
+
+
+class GetPrediction(APIView):
+    #permission_classes = [IsAuthenticated]
+    def post(self,request):
+        username = request.data.get('username')
+        user = User.objects.get(username=username)
+        gene_data = request.FILES.get('gene_file')
+        content_type = gene_data.content_type
+        #prediction = get_cancer_prediction()
+        response = "POST API and you have uploaded a {} file".format(content_type)
+        return Response(response)
+
