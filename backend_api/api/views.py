@@ -1,10 +1,11 @@
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import viewsets
-from .serializers import UserSerializer
+from .serializers import UserSerializer,FileUploadSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.models import User
-# from rest_framework.authentication import TokenAuthentication
+from .models import Results
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 import jwt
@@ -27,8 +28,8 @@ class RegisterUser(APIView):
 
 class LoginUser(APIView):
     def post(self, request):
-        user = request.data['username']
-        password = request.data['password']
+        user = request.data.get('username')
+        password = request.data.get('password')
 
         user = User.objects.filter(username=user).first()
 
@@ -67,13 +68,19 @@ class LogoutUser(APIView):
 
 
 class GetPrediction(APIView):
-    #permission_classes = [IsAuthenticated]
+   # permission_classes = [IsAuthenticated,]
     def post(self,request):
+        # serializer = FileUploadSerializer(data = request.data)
+        # if serializer.is_valid():
+        #     serializer.save()  
+
         username = request.data.get('username')
         user = User.objects.get(username=username)
         gene_data = request.FILES.get('gene_file')
-        content_type = gene_data.content_type
+        GeneObj = Results(username = user,gene_data = gene_data)
+        GeneObj.save()
+        # content_type = gene_data.content_type
         #prediction = get_cancer_prediction()
-        response = "POST API and you have uploaded a {} file".format(content_type)
-        return Response(response)
+        # response = "POST API and you have uploaded a {} file".format(content_type)
+        return Response({'status':200,'message':'The gene_file is saved successfully'})
 

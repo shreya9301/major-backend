@@ -16,4 +16,4 @@ class UserSerializer(serializers.ModelSerializer):
 class FileUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Results
-        fields = ['username','gene_file']
+        fields = ['username','gene_data']
