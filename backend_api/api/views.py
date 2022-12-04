@@ -1,18 +1,25 @@
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import viewsets
-from .serializers import UserSerializer,FileUploadSerializer
+from .serializers import UserSerializer
 from rest_framework.exceptions import AuthenticationFailed
-from django.contrib.auth.models import User
-from .models import Results
+from .models import User,Results
+from .fileHandle import handle_uploaded_file
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,AllowAny
+from .utility import predict
+from rest_framework.parsers import FileUploadParser,JSONParser,FormParser,MultiPartParser
 from rest_framework.authtoken.models import Token
 import jwt
 import datetime
+import os
+from wsgiref.util import FileWrapper
+from django.http import HttpResponse
 
 
 class RegisterUser(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [JSONParser,FormParser,MultiPartParser]
     def post(self, request):
         serializer = UserSerializer(data=request.data)
 
@@ -22,65 +29,58 @@ class RegisterUser(APIView):
 
         serializer.save()
         user = User.objects.get(username=serializer.data['username'])
-        token_obj, _ = Token.objects.get_or_create(user=user)
-        return Response({'status': 200, 'payload': serializer.data, 'token': str(token_obj), 'message': 'your data is saved successfully'})
-
-
-class LoginUser(APIView):
-    def post(self, request):
-        user = request.data.get('username')
-        password = request.data.get('password')
-
-        user = User.objects.filter(username=user).first()
-
-        if user is None:
-            raise AuthenticationFailed('User not found!')
-
-        if not user.check_password(password):
-            raise AuthenticationFailed('Incorrect password!')
-
-        payload = {
-            'id': user.id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60),
-            'iat': datetime.datetime.utcnow()
-        }
-
-        token = jwt.encode(payload, 'secret',
-                           algorithm='HS256')
-
-        response = Response()
-
-        response.set_cookie(key='jwt', value=token, httponly=True)
-        response.data = {
-            'jwt': token
-        }
-        return response
-
-
-class LogoutUser(APIView):
-    def post(self, request):
-        response = Response()
-        response.delete_cookie('jwt')
-        response.data = {
-            'message': 'success'
-        }
-        return response
+        return Response({'status': 200, 'payload': serializer.data, 'message': 'your data is saved successfully'})
 
 
 class GetPrediction(APIView):
    # permission_classes = [IsAuthenticated,]
     def post(self,request):
-        # serializer = FileUploadSerializer(data = request.data)
-        # if serializer.is_valid():
-        #     serializer.save()  
 
         username = request.data.get('username')
         user = User.objects.get(username=username)
-        gene_data = request.FILES.get('gene_file')
-        GeneObj = Results(username = user,gene_data = gene_data)
+        parser_classes = [FileUploadParser]
+        gene_data = request.data['gene_file']
+
+        final_path = handle_uploaded_file(user,gene_data)
+        print("-------------------------------------------" + final_path)
+        with open(final_path, 'w') as destination:
+            for chunk in gene_data.chunks():
+                destination.write(str(chunk))
+
+        GeneObj = Results(username = user,gene_data_path = final_path,date_uploaded = datetime.datetime.now().date())
         GeneObj.save()
-        # content_type = gene_data.content_type
-        #prediction = get_cancer_prediction()
-        # response = "POST API and you have uploaded a {} file".format(content_type)
+        print("saved")
+        #predict
+        gene_filename = gene_data.name
+        #result_file_path = predict(final_path)
+
         return Response({'status':200,'message':'The gene_file is saved successfully'})
 
+class CheckFile(APIView):
+    def post(self,request):
+        username = request.data.get('username')
+        userObj = User.objects.get(username = username)
+        resultObj = Results.objects.get(username = userObj)
+        #print(resultObj)
+        result_file_path = resultObj.gene_data_path
+        required_path = result_file_path[:-4] + "_results.csv"
+        print(required_path)
+        if (os.path.isfile(required_path) == True):
+            return HttpResponse(status = 200)
+        else:
+            return HttpResponse(status = 404)
+        
+        
+class FileDownload(APIView):
+
+    def get(self, request,username):
+        userObj = User.objects.get(username = username)
+        resultObj = Results.objects.get(username = userObj)
+        result_file_path = resultObj.gene_data_path
+        required_path = result_file_path[:-4] + "_results.csv"
+        print(required_path)
+        
+        with open(str(required_path), 'r') as file:
+            response = HttpResponse(file, content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename=file.csv'
+            return response
